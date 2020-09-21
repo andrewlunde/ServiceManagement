@@ -430,6 +430,7 @@ func (c *ServiceManagementPlugin) GetMetadata() plugin.PluginMetadata {
 		Commands: []plugin.Command{
 			{
 				Name:     "service-manager-service-instances",
+				Alias:    "smsi",
 				HelpText: "Show service manager service instances for a service offering and plan.",
 				UsageDetails: plugin.Usage{
 					Usage: "cf service-manager-service-instances [SERVICE_MANAGER_INSTANCE] [-offering <SERVICE_OFFERING>] [-plan <SERVICE_PLAN>] [--credentials] [--meta] [--owner] [-o JSON | SQLTools | Txt]",
