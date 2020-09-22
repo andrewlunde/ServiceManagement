@@ -14,8 +14,9 @@ import (
 	"log"
 	"os"
 	"os/user"
-	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 
 	"github.com/buger/jsonparser"
 )
@@ -38,16 +39,36 @@ func main() {
 	homeDirectory := user.HomeDir
 	fmt.Printf("Home Directory: %s\n", homeDirectory)
 
-	var isWorkspace = false // Scan from the root for *.code-workspace files???
+	var isWorkspace = true // Scan from the root for *.code-workspace files???
+	var isBAS = false
 	// Scan for *.theia-workspace files in BAS ??
+	var defaultsFile = "Unknown"
+	//var defaultsExists = false
+
 	var settingsFile = "Unknown"
 	var settingsExists = false
+
+	var skipping = false
+	var forceReplace = true
 
 	switch runtime.GOOS {
 	case "darwin":
 		fmt.Println("On Mac:")
 		if isWorkspace {
-			settingsFile = "~/Code/User/"
+			//settingsFile = "~/Code/User/"
+			// The current code-workspace file can be found by looking here.
+			// cat $HOME/Library/Application\ Support/Code/storage.json | grep -A 3 lastActiveWindow
+			defaultsFile = homeDirectory + "/Library/Application Support/Code/storage.json"
+			byteValue, err := ioutil.ReadFile(defaultsFile)
+			handleError(err)
+
+			configURIPath, err := jsonparser.GetString(byteValue, "windowsState", "lastActiveWindow", "workspaceIdentifier", "configURIPath")
+			handleError(err)
+
+			fmt.Println("configURIPath: " + configURIPath)
+
+			settingsFile = "/" + strings.TrimLeft(configURIPath, "file:/")
+			//settingsFile = homeDirectory + "/git/vsws/mta.code-workspace"
 		} else { //User(Global) Settings
 			// settingsFile = "$HOME/Library/Application Support/Code/User/settings.json"
 			settingsFile = homeDirectory + "/Library/Application Support/Code/User/settings.json"
@@ -55,16 +76,20 @@ func main() {
 
 	case "linux":
 		fmt.Println("On Linux:")
+
+		// Check to see if BAS
+		settingsFile = homeDirectory + "/.theia/settings.json"
+		if _, err := os.Stat(settingsFile); err == nil {
+			// path/to/whatever exists
+			fmt.Println("We are in BAS since " + settingsFile + " Exists!")
+			isWorkspace = false
+			isBAS = true
+		}
+
 		if isWorkspace {
 			settingsFile = "~/Code/User/"
 		} else { //User(Global) Settings
-			// Check to see if BAS
-			settingsFile = homeDirectory + "/.theia/settings.json"
-			if _, err := os.Stat(settingsFile); err == nil {
-				// path/to/whatever exists
-				fmt.Println("We are in BAS since " + settingsFile + " Exists!")
-
-			} else {
+			if !isBAS {
 				settingsFile = homeDirectory + "/.config/Code/User/settings.json"
 			}
 		}
@@ -99,8 +124,10 @@ func main() {
 	}
 
 	var newConn = `{
-		"name": "CAPMT_SMC:b44f32d4-6e31-4d95-b17f-6c6fcdb37e1f", 
-		"dialect": "SAPHana", 
+		"name": "CAPMT_SMC:subAcct",
+		"group": "SMSI", 
+		"driver": "SAPHana", 
+		"dialect": "SAPHana",
 		"server": "833726c5-cca3-4dce-a325-4385426009e7.hana.trial-us10.hanacloud.ondemand.com", 
 		"port": 443, 
 		"database": "D53EE042B6AD4E8093FF0A24F931586B", 
@@ -115,6 +142,10 @@ func main() {
 			}
 		}`
 
+	newConnName, _ := jsonparser.GetString([]byte(newConn), "name")
+
+	var foundIdx int = -1
+
 	if settingsExists {
 		// read file
 		byteValue, err := ioutil.ReadFile(settingsFile)
@@ -122,36 +153,135 @@ func main() {
 			fmt.Print(err)
 		} else {
 			//err := jsonparser.GetString(data, "items", "[0]", "id")
-			colorTheme, err := jsonparser.GetString(byteValue, "workbench.colorTheme")
-			handleError(err)
-			fmt.Println("colorTheme: " + colorTheme)
+			//colorTheme, err := jsonparser.GetString(byteValue, "workbench.colorTheme")
+			//handleError(err)
+			//fmt.Println("colorTheme: " + colorTheme)
+
+			// var newValue []byte
+			// var newType jsonparser.ValueType
+			// var newOffset int = 0
 
 			var dataValue []byte
 			var dataType jsonparser.ValueType
-			var offset int = 0
+			var dataOffset int = 0
 
-			dataValue, dataType, offset, err = jsonparser.Get(byteValue, "sqltools.connections")
+			if isWorkspace {
+				dataValue, dataType, dataOffset, err = jsonparser.Get(byteValue, "settings", "sqltools.connections")
+			} else {
+				dataValue, dataType, dataOffset, err = jsonparser.Get(byteValue, "sqltools.connections")
+			}
+
 			if err != nil {
 				fmt.Println("sqltools.connections" + " Key path not found")
 				// We can go ahead and add it.
 			}
 
-			fmt.Println("dataValue: " + string(dataValue))
-			fmt.Println("offset: ", offset)
+			// fmt.Println("dataValue: " + string(dataValue))
+			fmt.Println("offset: ", dataOffset)
 
 			if dataType == jsonparser.NotExist {
 				fmt.Println("sqltools.connections" + " is NotExist")
+				// IF this is the case then we can safely create a new sqltools.connections array and append it to settings
+
+				var newSQLToolsConn string
+				newSQLToolsConn = string(byteValue)
+				newSQLToolsConn2 := strings.TrimRight(newSQLToolsConn, "}")
+				newSQLToolsConn = newSQLToolsConn2
+				newSQLToolsConn += ","
+				newSQLToolsConn += `"sqltools.connections": [ `
+				newSQLToolsConn += newConn + "] }"
+
+				// write file
+				err = ioutil.WriteFile(settingsFile, []byte(newSQLToolsConn), 0644)
+				handleError(err)
 
 			} else if dataType == jsonparser.Array {
-				fmt.Println("sqltools.connections" + " is Array")
+				fmt.Println("sqltools.connections" + " is an Array")
 
+				var scidx int = 0
 				jsonparser.ArrayEach(dataValue, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 					name, _ := jsonparser.GetString(value, "name")
-					fmt.Println("name: " + name)
+					// fmt.Println("name: " + name)
+					if newConnName != name {
+						fmt.Println("keeping: " + name)
+					} else {
+						if forceReplace {
+							fmt.Println("replacing: " + name)
+						} else {
+							fmt.Println("skipping: " + name)
+						}
+						foundIdx = scidx
+						skipping = true
+					}
+					scidx = scidx + 1
 				})
 				// https://github.com/buger/jsonparser#set
 
-				fmt.Println("newConn: " + newConn)
+				if !skipping {
+					fmt.Println("Adding connection with name " + newConnName + ".")
+
+					var newSQLToolsConn string
+
+					newSQLToolsConn = string(dataValue)
+					newSQLToolsConn2 := strings.TrimRight(newSQLToolsConn, "]")
+					newSQLToolsConn = newSQLToolsConn2
+					if scidx > 0 {
+						newSQLToolsConn += ","
+					}
+					newSQLToolsConn += newConn + "]"
+
+					var setValue []byte
+
+					// fmt.Println("attempt set: ")
+
+					if isWorkspace {
+						setValue, err = jsonparser.Set(byteValue, []byte(newSQLToolsConn), "settings", "sqltools.connections")
+					} else {
+						setValue, err = jsonparser.Set(byteValue, []byte(newSQLToolsConn), "sqltools.connections")
+					}
+					handleError(err)
+
+					//fmt.Println("after set: ")
+					// jsonparser.ArrayEach(setValue, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+					// 	name, _ := jsonparser.GetString(value, "name")
+					// 	fmt.Println("name: " + name)
+					// })
+
+					// fmt.Println("newConn: " + newConn)
+					// fmt.Println("setValue: " + string(setValue))
+
+					// write file
+					err = ioutil.WriteFile(settingsFile, setValue, 0644)
+					handleError(err)
+				} else {
+					if forceReplace {
+						fmt.Println("Connection with name " + newConnName + " already exists!  Forcing replacement.")
+						idxStr := "[" + strconv.Itoa(foundIdx) + "]"
+						// idxStr := strconv.Itoa(foundIdx)
+						// fmt.Println("idxStr:" + idxStr)
+						var setValue []byte
+						if isWorkspace {
+							// dataValue, dataType, dataOffset, err = jsonparser.Get(byteValue, "settings", "sqltools.connections", idxStr)
+							setValue, err = jsonparser.Set(byteValue, []byte(newConn), "settings", "sqltools.connections", idxStr)
+						} else {
+							// dataValue, dataType, dataOffset, err = jsonparser.Get(byteValue, "sqltools.connections", idxStr)
+							setValue, err = jsonparser.Set(byteValue, []byte(newConn), "settings", "sqltools.connections", idxStr)
+						}
+						handleError(err)
+
+						//fmt.Println("setValue: " + string(setValue))
+						//fmt.Println("offset: ", dataOffset)
+
+						// fmt.Println("setValue: " + string(setValue))
+
+						// write file
+						err = ioutil.WriteFile(settingsFile, setValue, 0644)
+						handleError(err)
+
+					} else {
+						fmt.Println("Connection with name " + newConnName + " already exists!  Delete it first and rerun.")
+					}
+				}
 
 			} else if dataType == jsonparser.Object {
 				fmt.Println("sqltools.connections" + " is Object")
@@ -164,28 +294,7 @@ func main() {
 
 			}
 
-			/*
-				var result map[string]interface{}
-				json.Unmarshal([]byte(byteValue), &result)
-
-				sqltoolsConnections := result["sqltools.connections"].(map[string]interface{})
-
-				for key, value := range sqltoolsConnections {
-					fmt.Println(key, value.(string))
-				}
-			*/
-			//connections, dtype, offset, err := jsonparser.Get(byteValue, "sqltools.connections")
-			//handleError(err)
-
-			// fmt.Println("result: ", json.MarshalIndent(result, "", "    "))
-			//fmt.Println("dtype: " + jsonparser.ValueType.String(dtype))
-			//fmt.Println("offset: %d", offset)
-
 		}
 	}
 
-	fmt.Println(filepath.Join("a", "b", "c"))
-	fmt.Println(filepath.Join("a", "b/c"))
-	fmt.Println(filepath.Join("a/b", "c"))
-	fmt.Println(filepath.Join("a/b", "/c"))
 }

@@ -46,6 +46,8 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 	includeMeta := flags.Bool("meta", false, "Include Meta containers")
 	includeOwner := flags.Bool("owner", false, "Include Owner credentials")
 	outputFormat := flags.String("o", "Txt", "Show as JSON | SQLTools | Txt)")
+	modifySettings := flags.Bool("m", false, "Modify settings.json")
+	forceUpdates := flags.Bool("f", false, "Force updates of existing connections")
 	err := flags.Parse(args[1:])
 	handleError(err)
 
@@ -404,6 +406,17 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 				case "sqltools":
 					fmt.Println(`]}`)
 				}
+
+				if *modifySettings {
+					fmt.Println("modifySettings: " + "true")
+					if *forceUpdates {
+						fmt.Println("forceUpdates: " + "true")
+					} else {
+						fmt.Println("forceUpdates: " + "false")
+					}
+				} else {
+					fmt.Println("modifySettings: " + "false")
+				}
 			}
 
 		}
@@ -420,7 +433,7 @@ func (c *ServiceManagementPlugin) GetMetadata() plugin.PluginMetadata {
 		Version: plugin.VersionType{
 			Major: 1,
 			Minor: 0,
-			Build: 6,
+			Build: 7,
 		},
 		MinCliVersion: plugin.VersionType{
 			Major: 6,
@@ -433,7 +446,7 @@ func (c *ServiceManagementPlugin) GetMetadata() plugin.PluginMetadata {
 				Alias:    "smsi",
 				HelpText: "Show service manager service instances for a service offering and plan.",
 				UsageDetails: plugin.Usage{
-					Usage: "cf service-manager-service-instances [SERVICE_MANAGER_INSTANCE] [-offering <SERVICE_OFFERING>] [-plan <SERVICE_PLAN>] [--credentials] [--meta] [--owner] [-o JSON | SQLTools | Txt]",
+					Usage: "cf service-manager-service-instances [SERVICE_MANAGER_INSTANCE] [-offering <SERVICE_OFFERING>] [-plan <SERVICE_PLAN>] [--credentials] [--meta] [--owner] [-o JSON | SQLTools | Txt] [-m [-f]]",
 					Options: map[string]string{
 						"credentials": "Show credentials",
 						"meta":        "Include Meta containers",
@@ -441,6 +454,8 @@ func (c *ServiceManagementPlugin) GetMetadata() plugin.PluginMetadata {
 						"o":           "Show as JSON | SQLTools | Txt (default 'Txt')",
 						"offering":    "Service offering (default 'hana')",
 						"plan":        "Service plan (default 'hdi-shared')",
+						"m":           "Modify settings.json",
+						"f":           "Force updates of existing connections",
 					},
 				},
 			},
