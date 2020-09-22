@@ -240,6 +240,7 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 				handleError(err)
 
 				foundContainers := []Containers{}
+				var addConn = `{`
 
 				// for each item
 				var item = 0
@@ -316,7 +317,9 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 					//item = item + 1
 					isMeta = false
 					id, _ := jsonparser.GetString(value, "id")
+
 					name, _ := jsonparser.GetString(value, "name")
+
 					createdAt, _ := jsonparser.GetString(value, "created_at")
 					updatedAt, _ := jsonparser.GetString(value, "updated_at")
 					ready, _ := jsonparser.GetBoolean(value, "ready")
@@ -339,9 +342,12 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 						body5Bytes, err := ioutil.ReadAll(res5.Body)
 						handleError(err)
 						host, _ := jsonparser.GetString(body5Bytes, "items", "[0]", "credentials", "host")
+
 						port, _ := jsonparser.GetString(body5Bytes, "items", "[0]", "credentials", "port")
+
 						driver, _ := jsonparser.GetString(body5Bytes, "items", "[0]", "credentials", "driver")
 						schema, _ := jsonparser.GetString(body5Bytes, "items", "[0]", "credentials", "schema")
+
 						certificate, _ := jsonparser.GetString(body5Bytes, "items", "[0]", "credentials", "certificate")
 						re := regexp.MustCompile(`\n`)
 						certificate = re.ReplaceAllString(certificate, "")
@@ -354,6 +360,7 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 							hdiuser, _ = jsonparser.GetString(body5Bytes, "items", "[0]", "credentials", "hdi_user")
 							hdipassword, _ = jsonparser.GetString(body5Bytes, "items", "[0]", "credentials", "hdi_password")
 						}
+
 						tenantID, _ := jsonparser.GetString(body5Bytes, "items", "[0]", "labels", "tenant_id", "[0]")
 						var splits = strings.Split(tenantID, "-")
 						if splits[0] == "TENANT" {
@@ -399,6 +406,37 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 								}
 								fmt.Printf("TenantID: %s \n", tenantID)
 							}
+							if item > 1 {
+								addConn += `},{`
+							}
+							// Put all the addConn stuff here
+							addConn += `"name": "` + serviceManagerName + `:` + tenantID + `",`
+							addConn += `"group": "` + `SMSI` + `",`
+							addConn += `"driver": "` + `SAPHana` + `",`
+							addConn += `"dialect": "` + `SAPHana` + `",`
+
+							addConn += `"server": "` + host + `",`
+							addConn += `"port": "` + port + `",`
+
+							addConn += `"database": "` + schema + `",`
+
+							if *includeOwner {
+								addConn += `"username": "` + hdiuser + `",`
+								addConn += `"password": "` + hdipassword + `",`
+							} else {
+								addConn += `"username": "` + user + `",`
+								addConn += `"password": "` + password + `",`
+							}
+
+							addConn += `"connectionTimeout": ` + `30` + `,`
+							addConn += `"hanaOptions": ` + `{` + ``
+							addConn += `     "encrypt": ` + `true` + `,`
+							addConn += `     "sslValidateCertificate": ` + `true` + `,`
+							addConn += `     "sslCryptoProvider": ` + `"openssl"` + `,`
+							addConn += `     "sslTrustStore": "` + certificate + `"`
+
+							addConn += `     ` + `}` + ``
+
 						}
 					}
 				}, "items")
@@ -410,6 +448,8 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 					fmt.Println(`]}`)
 				}
 
+				addConn += `}`
+
 				if *modifySettings {
 					fmt.Println("modifySettings: " + "true")
 					if *forceUpdates {
@@ -417,6 +457,8 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 					} else {
 						fmt.Println("forceUpdates: " + "false")
 					}
+
+					fmt.Println("addConn: " + addConn)
 
 					fmt.Println(runtime.GOOS)
 					fmt.Println(runtime.GOARCH)
@@ -438,7 +480,6 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 					var settingsExists = false
 
 					var skipping = false
-					var forceReplace = true
 
 					switch runtime.GOOS {
 					case "darwin":
@@ -512,26 +553,27 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 
 					}
 
-					var newConn = `{
-						"name": "CAPMT_SMC:subAcct",
-						"group": "SMSI", 
-						"driver": "SAPHana", 
-						"dialect": "SAPHana",
-						"server": "833726c5-cca3-4dce-a325-4385426009e7.hana.trial-us10.hanacloud.ondemand.com", 
-						"port": 443, 
-						"database": "D53EE042B6AD4E8093FF0A24F931586B", 
-						"username": "D53EE042B6AD4E8093FF0A24F931586B_B5IBO9PWMQ841D52POXNE26XN_RT", 
-						"password": "Mw9h7H.5r6CBidD2vtq.vxmzisxLAMx2_UJ9YrjZim2Yop-kUOcBII-g6VHYZMDpPzjT0PCQua.8i-V2f8MrjDqkGG6hRZAct2a2YIL7PFrlzeSDhO5qBOl6ni-VRF3t", 
-						"connectionTimeout": 30, 
-						"hanaOptions": {
-							"encrypt": true, 
-							"sslValidateCertificate": true, 
-							"sslCryptoProvider": "openssl", 
-							"sslTrustStore": "-----BEGIN CERTIFICATE-----MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBhMQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBDQTAeFw0wNjExMTAwMDAwMDBaFw0zMTExMTAwMDAwMDBaMGExCzAJBgNVBAYTAlVTMRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4jvhEXLeqKTTo1eqUKKPC3eQyaKl7hLOllsBCSDMAZOnTjC3U/dDxGkAV53ijSLdhwZAAIEJzs4bg7/fzTtxRuLWZscFs3YnFo97nh6Vfe63SKMI2tavegw5BmV/Sl0fvBf4q77uKNd0f3p4mVmFaG5cIzJLv07A6Fpt43C/dxC//AH2hdmoRBBYMql1GNXRor5H4idq9Joz+EkIYIvUX7Q6hL+hqkpMfT7PT19sdl6gSzeRntwi5m3OFBqOasv+zbMUZBfHWymeMr/y7vrTC0LUq7dBMtoM1O/4gdW7jVg/tRvoSSiicNoxBN33shbyTApOB6jtSj1etX+jkMOvJwIDAQABo2MwYTAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUA95QNVbRTLtm8KPiGxvDl7I90VUwHwYDVR0jBBgwFoAUA95QNVbRTLtm8KPiGxvDl7I90VUwDQYJKoZIhvcNAQEFBQADggEBAMucN6pIExIK+t1EnE9SsPTfrgT1eXkIoyQY/EsrhMAtudXH/vTBH1jLuG2cenTnmCmrEbXjcKChzUyImZOMkXDiqw8cvpOp/2PV5Adg06O/nVsJ8dWO41P0jmP6P6fbtGbfYmbW0W5BjfIttep3Sp+dWOIrWcBAI+0tKIJFPnlUkiaY4IBIqDfv8NZ5YBberOgOzW6sRBc4L0na4UU+Krk2U886UAb3LujEV0lsYSEY1QSteDwsOoBrp+uvFRTp2InBuThs4pFsiv9kuXclVzDAGySj4dzp30d8tbQkCAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=-----END CERTIFICATE-----"
-							}
-						}`
+					// var newConn = `{
+					// 	"name": "CAPMT_SMC:subAcct",
+					// 	"group": "SMSI",
+					// 	"driver": "SAPHana",
+					// 	"dialect": "SAPHana",
+					// 	"server": "833726c5-cca3-4dce-a325-4385426009e7.hana.trial-us10.hanacloud.ondemand.com",
+					// 	"port": 443,
+					// 	"database": "D53EE042B6AD4E8093FF0A24F931586B",
+					// 	"username": "D53EE042B6AD4E8093FF0A24F931586B_B5IBO9PWMQ841D52POXNE26XN_RT",
+					// 	"password": "Mw9h7H.5r6CBidD2vtq.vxmzisxLAMx2_UJ9YrjZim2Yop-kUOcBII-g6VHYZMDpPzjT0PCQua.8i-V2f8MrjDqkGG6hRZAct2a2YIL7PFrlzeSDhO5qBOl6ni-VRF3t",
+					// 	"connectionTimeout": 30,
+					// 	"hanaOptions": {
+					// 		"encrypt": true,
+					// 		"sslValidateCertificate": true,
+					// 		"sslCryptoProvider": "openssl",
+					// 		"sslTrustStore": "-----BEGIN CERTIFICATE-----MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBhMQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBDQTAeFw0wNjExMTAwMDAwMDBaFw0zMTExMTAwMDAwMDBaMGExCzAJBgNVBAYTAlVTMRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4jvhEXLeqKTTo1eqUKKPC3eQyaKl7hLOllsBCSDMAZOnTjC3U/dDxGkAV53ijSLdhwZAAIEJzs4bg7/fzTtxRuLWZscFs3YnFo97nh6Vfe63SKMI2tavegw5BmV/Sl0fvBf4q77uKNd0f3p4mVmFaG5cIzJLv07A6Fpt43C/dxC//AH2hdmoRBBYMql1GNXRor5H4idq9Joz+EkIYIvUX7Q6hL+hqkpMfT7PT19sdl6gSzeRntwi5m3OFBqOasv+zbMUZBfHWymeMr/y7vrTC0LUq7dBMtoM1O/4gdW7jVg/tRvoSSiicNoxBN33shbyTApOB6jtSj1etX+jkMOvJwIDAQABo2MwYTAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUA95QNVbRTLtm8KPiGxvDl7I90VUwHwYDVR0jBBgwFoAUA95QNVbRTLtm8KPiGxvDl7I90VUwDQYJKoZIhvcNAQEFBQADggEBAMucN6pIExIK+t1EnE9SsPTfrgT1eXkIoyQY/EsrhMAtudXH/vTBH1jLuG2cenTnmCmrEbXjcKChzUyImZOMkXDiqw8cvpOp/2PV5Adg06O/nVsJ8dWO41P0jmP6P6fbtGbfYmbW0W5BjfIttep3Sp+dWOIrWcBAI+0tKIJFPnlUkiaY4IBIqDfv8NZ5YBberOgOzW6sRBc4L0na4UU+Krk2U886UAb3LujEV0lsYSEY1QSteDwsOoBrp+uvFRTp2InBuThs4pFsiv9kuXclVzDAGySj4dzp30d8tbQkCAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=-----END CERTIFICATE-----"
+					// 		}
+					// 	}`
 
-					newConnName, _ := jsonparser.GetString([]byte(newConn), "name")
+					//connName, _ := jsonparser.GetString([]byte(newConn), "name")
+					connName, _ := jsonparser.GetString([]byte(addConn), "name")
 
 					var foundIdx int = -1
 
@@ -578,7 +620,8 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 								newSQLToolsConn = newSQLToolsConn2
 								newSQLToolsConn += ","
 								newSQLToolsConn += `"sqltools.connections": [ `
-								newSQLToolsConn += newConn + "] }"
+								//newSQLToolsConn += newConn + "] }"
+								newSQLToolsConn += addConn + "] }"
 
 								// write file
 								err = ioutil.WriteFile(settingsFile, []byte(newSQLToolsConn), 0644)
@@ -591,10 +634,10 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 								jsonparser.ArrayEach(dataValue, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 									name, _ := jsonparser.GetString(value, "name")
 									// fmt.Println("name: " + name)
-									if newConnName != name {
+									if connName != name {
 										fmt.Println("keeping: " + name)
 									} else {
-										if forceReplace {
+										if *modifySettings {
 											fmt.Println("replacing: " + name)
 										} else {
 											fmt.Println("skipping: " + name)
@@ -607,7 +650,7 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 								// https://github.com/buger/jsonparser#set
 
 								if !skipping {
-									fmt.Println("Adding connection with name " + newConnName + ".")
+									fmt.Println("Adding connection with name " + connName + ".")
 
 									var newSQLToolsConn string
 
@@ -617,7 +660,8 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 									if scidx > 0 {
 										newSQLToolsConn += ","
 									}
-									newSQLToolsConn += newConn + "]"
+									//newSQLToolsConn += newConn + "]"
+									newSQLToolsConn += addConn + "]"
 
 									var setValue []byte
 
@@ -643,18 +687,24 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 									err = ioutil.WriteFile(settingsFile, setValue, 0644)
 									handleError(err)
 								} else {
-									if forceReplace {
-										fmt.Println("Connection with name " + newConnName + " already exists!  Forcing replacement.")
+									if *modifySettings {
+										fmt.Println("Connection with name " + connName + " already exists!  Forcing replacement.")
 										idxStr := "[" + strconv.Itoa(foundIdx) + "]"
 										// idxStr := strconv.Itoa(foundIdx)
 										// fmt.Println("idxStr:" + idxStr)
 										var setValue []byte
 										if isWorkspace {
 											// dataValue, dataType, dataOffset, err = jsonparser.Get(byteValue, "settings", "sqltools.connections", idxStr)
-											setValue, err = jsonparser.Set(byteValue, []byte(newConn), "settings", "sqltools.connections", idxStr)
+											// setValue, err = jsonparser.Set(byteValue, []byte(newConn), "settings", "sqltools.connections", idxStr)
+											if *modifySettings && *forceUpdates {
+												setValue, err = jsonparser.Set(byteValue, []byte(addConn), "settings", "sqltools.connections", idxStr)
+											}
 										} else {
 											// dataValue, dataType, dataOffset, err = jsonparser.Get(byteValue, "sqltools.connections", idxStr)
-											setValue, err = jsonparser.Set(byteValue, []byte(newConn), "settings", "sqltools.connections", idxStr)
+											// setValue, err = jsonparser.Set(byteValue, []byte(newConn), "settings", "sqltools.connections", idxStr)
+											if *modifySettings && *forceUpdates {
+												setValue, err = jsonparser.Set(byteValue, []byte(addConn), "settings", "sqltools.connections", idxStr)
+											}
 										}
 										handleError(err)
 
@@ -668,7 +718,7 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 										handleError(err)
 
 									} else {
-										fmt.Println("Connection with name " + newConnName + " already exists!  Delete it first and rerun.")
+										fmt.Println("Connection with name " + connName + " already exists!  Delete it first and rerun.")
 									}
 								}
 
