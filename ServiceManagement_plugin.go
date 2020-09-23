@@ -265,6 +265,9 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 					handleError(err)
 
 					tenantID, _ := jsonparser.GetString(body5Bytes, "items", "[0]", "labels", "tenant_id", "[0]")
+
+					//spaceName, _ := jsonparser.GetString(body5Bytes, "items", "[0]", "context", "space_name")
+
 					var splits = strings.Split(tenantID, "-")
 					if splits[0] == "TENANT" {
 						isMeta = true
@@ -362,6 +365,9 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 						}
 
 						tenantID, _ := jsonparser.GetString(body5Bytes, "items", "[0]", "labels", "tenant_id", "[0]")
+
+						spaceName, _ := jsonparser.GetString(body5Bytes, "items", "[0]", "context", "space_name")
+
 						var splits = strings.Split(tenantID, "-")
 						if splits[0] == "TENANT" {
 							isMeta = true
@@ -393,7 +399,7 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 								}
 								fmt.Printf(`{"name": "%s", "group": "SMSI", "dialect": "SAPHana", "driver": "SAPHana", "server": "%s", "port": %s, "database": "%s", "username": "%s", "password": "%s", "connectionTimeout": 30, "hanaOptions": {"encrypt": true, "sslValidateCertificate": true, "sslCryptoProvider": "openssl", "sslTrustStore": "%s"}}`, serviceManagerName+":"+tenantID, host, port, schema, user, password, certificate)
 								if servicePlanName == "hdi-shared" && *includeOwner {
-									fmt.Printf(`,{"name": "%s", "group": "SMSI", "dialect": "SAPHana", "driver": "SAPHana", "server": "%s", "port": %s, "database": "%s", "username": "%s", "password": "%s", "connectionTimeout": 30, "hanaOptions": {"encrypt": true, "sslValidateCertificate": true, "sslCryptoProvider": "openssl", "sslTrustStore": "%s"}}`, serviceManagerName+":"+tenantID+":OWNER", host, port, schema, hdiuser, hdipassword, certificate)
+									fmt.Printf(`,{"name": "%s", "group": "SMSI", "dialect": "SAPHana", "driver": "SAPHana", "server": "%s", "port": %s, "database": "%s", "username": "%s", "password": "%s", "connectionTimeout": 30, "hanaOptions": {"encrypt": true, "sslValidateCertificate": true, "sslCryptoProvider": "openssl", "sslTrustStore": "%s"}}`, serviceManagerName+":"+spaceName+":"+tenantID+":OWNER", host, port, schema, hdiuser, hdipassword, certificate)
 								}
 							} else {
 								//txt
@@ -410,32 +416,33 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 								addConn += `},{`
 							}
 							// Put all the addConn stuff here
-							addConn += `"name": "` + serviceManagerName + `:` + tenantID + `",`
-							addConn += `"group": "` + `SMSI` + `",`
-							addConn += `"driver": "` + `SAPHana` + `",`
-							addConn += `"dialect": "` + `SAPHana` + `",`
+							addConn += "\n" + `"name": "` + serviceManagerName + `:` + spaceName + `:` + tenantID + `",` + "\n"
+							addConn += `"group": "` + serviceManagerName + `:` + spaceName + `",` + "\n"
+							addConn += `"driver": "` + `SAPHana` + `",` + "\n"
+							addConn += `"dialect": "` + `SAPHana` + `",` + "\n"
 
-							addConn += `"server": "` + host + `",`
-							addConn += `"port": "` + port + `",`
+							addConn += `"server": "` + host + `",` + "\n"
+							addConn += `"port": ` + port + `,` + "\n"
 
-							addConn += `"database": "` + schema + `",`
+							addConn += `"database": "` + schema + `",` + "\n"
 
 							if *includeOwner {
-								addConn += `"username": "` + hdiuser + `",`
-								addConn += `"password": "` + hdipassword + `",`
+								addConn += `"username": "` + hdiuser + `",` + "\n"
+								addConn += `"password": "` + hdipassword + `",` + "\n"
 							} else {
-								addConn += `"username": "` + user + `",`
-								addConn += `"password": "` + password + `",`
+								addConn += `"username": "` + user + `",` + "\n"
+								addConn += `"password": "` + password + `",` + "\n"
 							}
 
-							addConn += `"connectionTimeout": ` + `30` + `,`
-							addConn += `"hanaOptions": ` + `{` + ``
-							addConn += `     "encrypt": ` + `true` + `,`
-							addConn += `     "sslValidateCertificate": ` + `true` + `,`
-							addConn += `     "sslCryptoProvider": ` + `"openssl"` + `,`
-							addConn += `     "sslTrustStore": "` + certificate + `"`
+							addConn += `"previewLimit": ` + `50` + `,` + "\n"
+							addConn += `"connectionTimeout": ` + `30` + `,` + "\n"
+							addConn += `"hanaOptions": ` + `{` + `` + "\n"
+							addConn += `     "encrypt": ` + `true` + `,` + "\n"
+							addConn += `     "sslValidateCertificate": ` + `true` + `,` + "\n"
+							addConn += `     "sslCryptoProvider": ` + `"openssl"` + `,` + "\n"
+							addConn += `     "sslTrustStore": "` + certificate + `"` + "\n"
 
-							addConn += `     ` + `}` + ``
+							addConn += `` + `}` + "\n"
 
 						}
 					}
@@ -450,7 +457,10 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 
 				addConn += `}`
 
+				// modifySettings = mod_settings.go
+
 				if *modifySettings {
+					fmt.Println("")
 					fmt.Println("modifySettings: " + "true")
 					if *forceUpdates {
 						fmt.Println("forceUpdates: " + "true")
@@ -470,7 +480,7 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 					homeDirectory := user.HomeDir
 					fmt.Printf("Home Directory: %s\n", homeDirectory)
 
-					var isWorkspace = true // Scan from the root for *.code-workspace files???
+					var inSettings = false
 					var isBAS = false
 					// Scan for *.theia-workspace files in BAS ??
 					var defaultsFile = "Unknown"
@@ -484,24 +494,24 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 					switch runtime.GOOS {
 					case "darwin":
 						fmt.Println("On Mac:")
-						if isWorkspace {
-							//settingsFile = "~/Code/User/"
-							// The current code-workspace file can be found by looking here.
-							// cat $HOME/Library/Application\ Support/Code/storage.json | grep -A 3 lastActiveWindow
-							defaultsFile = homeDirectory + "/Library/Application Support/Code/storage.json"
-							byteValue, err := ioutil.ReadFile(defaultsFile)
-							handleError(err)
+						//
+						// The current code-workspace file can be found by looking here.
+						// cat $HOME/Library/Application\ Support/Code/storage.json | grep -A 3 lastActiveWindow
+						// User (GLOBAL) settings file
+						// If this(User) file has a sqltools.connections object but the current code-workspace files doesn't
+						// then this is used.  Otherwise it's ignored as soon as the code-workspace settings->sqltools.connections exists
+						// Currently SQLTools won't allow writing settings into the User file, but will display them if they already exist.
+						settingsFile = homeDirectory + "/Library/Application Support/Code/User/settings.json"
 
+						defaultsFile = homeDirectory + "/Library/Application Support/Code/storage.json"
+						byteValue, err := ioutil.ReadFile(defaultsFile)
+						if err == nil {
 							configURIPath, err := jsonparser.GetString(byteValue, "windowsState", "lastActiveWindow", "workspaceIdentifier", "configURIPath")
-							handleError(err)
-
-							fmt.Println("configURIPath: " + configURIPath)
-
-							settingsFile = "/" + strings.TrimLeft(configURIPath, "file:/")
-							//settingsFile = homeDirectory + "/git/vsws/mta.code-workspace"
-						} else { //User(Global) Settings
-							// settingsFile = "$HOME/Library/Application Support/Code/User/settings.json"
-							settingsFile = homeDirectory + "/Library/Application Support/Code/User/settings.json"
+							if err == nil {
+								fmt.Println("configURIPath: " + configURIPath)
+								settingsFile = "/" + strings.TrimLeft(configURIPath, "file:/")
+								inSettings = true // File has sqltools.connections at the top-level
+							}
 						}
 
 					case "linux":
@@ -512,11 +522,11 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 						if _, err := os.Stat(settingsFile); err == nil {
 							// path/to/whatever exists
 							fmt.Println("We are in BAS since " + settingsFile + " Exists!")
-							isWorkspace = false
+							inSettings = false
 							isBAS = true
 						}
 
-						if isWorkspace {
+						if inSettings {
 							settingsFile = "~/Code/User/"
 						} else { //User(Global) Settings
 							if !isBAS {
@@ -526,7 +536,7 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 
 					case "windows":
 						fmt.Println("On Windoz:")
-						if isWorkspace {
+						if inSettings {
 							settingsFile = "~/Code/User/"
 						} else { //User(Global) Settings
 							settingsFile = homeDirectory + "%APPDATA%\\Code\\User\\settings.json"
@@ -535,6 +545,11 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 					}
 
 					fmt.Println("settingsFile: " + settingsFile)
+					if inSettings {
+						fmt.Println("Look in settings...")
+					} else {
+						fmt.Println("Look at top-level..")
+					}
 
 					if _, err := os.Stat(settingsFile); err == nil {
 						// path/to/whatever exists
@@ -595,9 +610,20 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 							var dataValue []byte
 							var dataType jsonparser.ValueType
 							var dataOffset int = 0
+							var needsSettings = false
 
-							if isWorkspace {
-								dataValue, dataType, dataOffset, err = jsonparser.Get(byteValue, "settings", "sqltools.connections")
+							if inSettings {
+								dataValue, dataType, dataOffset, err = jsonparser.Get(byteValue, "settings")
+								if err != nil {
+									fmt.Println("settings" + " Key path not found")
+									needsSettings = true
+								} else {
+									dataValue, dataType, dataOffset, err = jsonparser.Get(byteValue, "settings", "sqltools.connections")
+									if err != nil {
+										fmt.Println("sqltools.connections" + " Key path not found")
+										// We can go ahead and add it.
+									}
+								}
 							} else {
 								dataValue, dataType, dataOffset, err = jsonparser.Get(byteValue, "sqltools.connections")
 							}
@@ -616,12 +642,23 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 
 								var newSQLToolsConn string
 								newSQLToolsConn = string(byteValue)
-								newSQLToolsConn2 := strings.TrimRight(newSQLToolsConn, "}")
-								newSQLToolsConn = newSQLToolsConn2
-								newSQLToolsConn += ","
-								newSQLToolsConn += `"sqltools.connections": [ `
+								newSQLToolsConn = strings.TrimSpace(newSQLToolsConn)
+								newSQLToolsConn = strings.TrimRight(newSQLToolsConn, "}")
+								newSQLToolsConn = strings.TrimSpace(newSQLToolsConn)
+								newSQLToolsConn += ",\n"
+								if needsSettings {
+									fmt.Println("adding settings {} ")
+									newSQLToolsConn += "\"settings\": \n { "
+								}
+								fmt.Println("adding sqltools.connections [] ")
+								newSQLToolsConn += "\"sqltools.connections\": [ \n"
 								//newSQLToolsConn += newConn + "] }"
-								newSQLToolsConn += addConn + "] }"
+								newSQLToolsConn += addConn
+								newSQLToolsConn += "\n]\n"
+								if needsSettings {
+									newSQLToolsConn += "} \n"
+								}
+								newSQLToolsConn += "} \n"
 
 								// write file
 								err = ioutil.WriteFile(settingsFile, []byte(newSQLToolsConn), 0644)
@@ -667,7 +704,7 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 
 									// fmt.Println("attempt set: ")
 
-									if isWorkspace {
+									if inSettings {
 										setValue, err = jsonparser.Set(byteValue, []byte(newSQLToolsConn), "settings", "sqltools.connections")
 									} else {
 										setValue, err = jsonparser.Set(byteValue, []byte(newSQLToolsConn), "sqltools.connections")
@@ -688,12 +725,12 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 									handleError(err)
 								} else {
 									if *modifySettings {
-										fmt.Println("Connection with name " + connName + " already exists!  Forcing replacement.")
+										fmt.Println("Connection with name " + connName + " already exists!  -f to force replacement.")
 										idxStr := "[" + strconv.Itoa(foundIdx) + "]"
 										// idxStr := strconv.Itoa(foundIdx)
 										// fmt.Println("idxStr:" + idxStr)
 										var setValue []byte
-										if isWorkspace {
+										if inSettings {
 											// dataValue, dataType, dataOffset, err = jsonparser.Get(byteValue, "settings", "sqltools.connections", idxStr)
 											// setValue, err = jsonparser.Set(byteValue, []byte(newConn), "settings", "sqltools.connections", idxStr)
 											if *modifySettings && *forceUpdates {
@@ -703,7 +740,7 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 											// dataValue, dataType, dataOffset, err = jsonparser.Get(byteValue, "sqltools.connections", idxStr)
 											// setValue, err = jsonparser.Set(byteValue, []byte(newConn), "settings", "sqltools.connections", idxStr)
 											if *modifySettings && *forceUpdates {
-												setValue, err = jsonparser.Set(byteValue, []byte(addConn), "settings", "sqltools.connections", idxStr)
+												setValue, err = jsonparser.Set(byteValue, []byte(addConn), "sqltools.connections", idxStr)
 											}
 										}
 										handleError(err)
@@ -713,9 +750,11 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 
 										// fmt.Println("setValue: " + string(setValue))
 
-										// write file
-										err = ioutil.WriteFile(settingsFile, setValue, 0644)
-										handleError(err)
+										if *modifySettings && *forceUpdates {
+											// write file
+											err = ioutil.WriteFile(settingsFile, setValue, 0644)
+											handleError(err)
+										}
 
 									} else {
 										fmt.Println("Connection with name " + connName + " already exists!  Delete it first and rerun.")
@@ -755,7 +794,7 @@ func (c *ServiceManagementPlugin) GetMetadata() plugin.PluginMetadata {
 		Version: plugin.VersionType{
 			Major: 1,
 			Minor: 0,
-			Build: 8,
+			Build: 9,
 		},
 		MinCliVersion: plugin.VersionType{
 			Major: 6,
