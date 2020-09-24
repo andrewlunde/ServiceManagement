@@ -18,9 +18,9 @@ GOOS=darwin GOARCH=amd64 go build -o ServiceManagement.osx ServiceManagement_plu
 In BAS
 ```
 cd ~
-curl -LJO http://thedrop.sap-partner-eng.com/files/ServiceManagement_1_0_8.linux64
-chmod 755 ServiceManagement_1_0_8.linux64
-cf uninstall-plugin ServiceManagement ; cf install-plugin ServiceManagement_1_0_8.linux64 -f
+curl -LJO http://thedrop.sap-partner-eng.com/files/ServiceManagement_1_0_10.linux64
+chmod 755 ServiceManagement_1_0_10.linux64
+cf uninstall-plugin ServiceManagement ; cf install-plugin ServiceManagement_1_0_10.linux64 -f
 cf plugins | grep ServiceManage
 
 curl -LJO "Redirects"
