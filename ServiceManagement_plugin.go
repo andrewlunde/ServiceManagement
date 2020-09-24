@@ -51,6 +51,7 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 	outputFormat := flags.String("o", "Txt", "Show as JSON | SQLTools | Txt)")
 	modifySettings := flags.Bool("m", false, "Modify settings.json")
 	forceUpdates := flags.Bool("f", false, "Force updates (requires -m)")
+	offerAll := flags.Bool("a", false, "Offer All Containers option")
 	err := flags.Parse(args[1:])
 	handleError(err)
 
@@ -131,7 +132,7 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 			}
 		}
 
-		fmt.Println("service manager = " + serviceManagerName)
+		fmt.Println("Using service manager = " + serviceManagerName)
 
 		serviceOfferingName := strings.ToLower(*serviceOfferingName)
 		servicePlanName := strings.ToLower(*servicePlanName)
@@ -284,7 +285,9 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 				whichID := "ALL"
 
 				if len(foundContainers) > 1 {
-					fmt.Printf("%d: %s \n", 0, "Include All")
+					if *offerAll {
+						fmt.Printf("%d: %s \n", 0, "Include All")
+					}
 					for i := 0; i < len(foundContainers); i++ {
 						fmt.Printf("%d. %s \n", i+1, foundContainers[i].TenantID)
 					}
@@ -293,24 +296,28 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 					var input string
 					fmt.Scanln(&input)
 					cidx, _ := strconv.Atoi(input)
-					if cidx == 0 {
+					if cidx == 0 && *offerAll {
 						fmt.Printf("Using: %s \n", "All Containers")
 					} else {
 						whichContainer := foundContainers[cidx-1].TenantID
 						fmt.Printf("Using: %s \n", whichContainer)
 						whichID = foundContainers[cidx-1].ContainerID
+						item = 1
 					}
 				} else {
 					whichID = foundContainers[0].ContainerID
+					item = 1
 				}
 
 				switch outputFormat {
 				case "json":
-					fmt.Printf(`{"service_offering": "%s", "service_plan": "%s", "num_items": %d, "items": [`, serviceOfferingName, servicePlanName, numItems)
+					fmt.Printf("{\n\"service_offering\": \"%s\", \n\"service_plan\": \"%s\", \n\"num_items\": %d, \n\"items\": \n [\n", serviceOfferingName, servicePlanName, item)
 				case "sqltools":
 					fmt.Printf(`{"sqltools.connections": [`)
 				case "txt":
-					fmt.Printf("%d items found for service offering %s and service plan %s.\n", numItems, serviceOfferingName, servicePlanName)
+					if !*modifySettings {
+						fmt.Printf("%d items found for service offering %s and service plan %s.\n", numItems, serviceOfferingName, servicePlanName)
+					}
 				}
 
 				// for each item
@@ -383,16 +390,16 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 							item = item + 1
 							if outputFormat == "json" {
 								if item > 1 {
-									fmt.Printf(`,`)
+									fmt.Printf(",\n")
 								}
-								fmt.Printf(`{"name": "%s", "id": "%s", "created_at": "%s", "updated_at": "%s", "ready": %t, "usable": %t, "schema": "%s", "host": "%s", "port": "%s", "url": "%s", "driver": "%s"`, name, id, createdAt, updatedAt, ready, usable, schema, host, port, url, driver)
+								fmt.Printf("  {\n  \"name\": \"%s\", \n  \"id\": \"%s\", \n  \"tenant\": \"%s\", \n  \"created_at\": \"%s\", \n  \"updated_at\": \"%s\", \n  \"ready\": %t, \n  \"usable\": %t, \n  \"schema\": \"%s\", \n  \"host\": \"%s\", \n  \"port\": \"%s\", \n  \"url\": \"%s\", \n  \"driver\": \"%s\"", name, id, tenantID, createdAt, updatedAt, ready, usable, schema, host, port, url, driver)
 								if *showCredentials {
-									fmt.Printf(`, "user": "%s", "password": "%s", "certificate": "%s"`, user, password, certificate)
+									fmt.Printf(", \n  \"user\": \"%s\", \n  \"password\": \"%s\", \n  \"certificate\": \"%s\"", user, password, certificate)
 									if servicePlanName == "hdi-shared" && *includeOwner {
-										fmt.Printf(`, "hdi_user": "%s", "hdi_password": "%s"`, hdiuser, hdipassword)
+										fmt.Printf(",\n  \"hdi_user\": \"%s\", \n  \"hdi_password\": \"%s\"", hdiuser, hdipassword)
 									}
 								}
-								fmt.Printf(`}`)
+								fmt.Printf("\n  }")
 							} else if outputFormat == "sqltools" {
 								if item > 1 {
 									fmt.Printf(`,`)
@@ -403,14 +410,14 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 								}
 							} else {
 								//txt
-								fmt.Printf("\nName: %s \nId: %s \nCreatedAt: %s \nUpdatedAt: %s \nReady: %t \nUsable: %t \nSchema: %s \nHost: %s \nPort: %s \nURL: %s \nDriver: %s\n", name, id, createdAt, updatedAt, ready, usable, schema, host, port, url, driver)
+								fmt.Printf("\nName: %s \nId: %s \nTenant: %s \nCreatedAt: %s \nUpdatedAt: %s \nReady: %t \nUsable: %t \nSchema: %s \nHost: %s \nPort: %s \nURL: %s \nDriver: %s\n", name, id, tenantID, createdAt, updatedAt, ready, usable, schema, host, port, url, driver)
 								if *showCredentials {
 									fmt.Printf("User: %s \nPassword: %s \nCertificate: %s \n", user, password, certificate)
 									if servicePlanName == "hdi-shared" && *includeOwner {
 										fmt.Printf("HDIUser: %s \nHDIPassword: %s \n", hdiuser, hdipassword)
 									}
 								}
-								fmt.Printf("TenantID: %s \n", tenantID)
+								// fmt.Printf("TenantID: %s \n", tenantID)
 							}
 							if item > 1 {
 								addConn += `},{`
@@ -450,7 +457,7 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 
 				switch outputFormat {
 				case "json":
-					fmt.Println(`]}`)
+					fmt.Println("\n ]\n}\n")
 				case "sqltools":
 					fmt.Println(`]}`)
 				}
@@ -468,10 +475,12 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 						fmt.Println("forceUpdates: " + "false")
 					}
 
-					fmt.Println("addConn: " + addConn)
+					fmt.Println("")
 
-					fmt.Println(runtime.GOOS)
-					fmt.Println(runtime.GOARCH)
+					// fmt.Println("addConn: " + addConn)
+
+					//fmt.Println(runtime.GOOS)
+					//fmt.Println(runtime.GOARCH)
 
 					user, err := user.Current()
 					if err != nil {
@@ -568,6 +577,8 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 
 					}
 
+					fmt.Println("")
+
 					// var newConn = `{
 					// 	"name": "CAPMT_SMC:subAcct",
 					// 	"group": "SMSI",
@@ -634,9 +645,10 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 							}
 
 							// fmt.Println("dataValue: " + string(dataValue))
-							fmt.Println("offset: ", dataOffset)
+							// fmt.Println("offset: ", dataOffset)
 
 							if dataType == jsonparser.NotExist {
+								fmt.Println("offset: ", dataOffset)
 								fmt.Println("sqltools.connections" + " is NotExist")
 								// IF this is the case then we can safely create a new sqltools.connections array and append it to settings
 
@@ -665,7 +677,7 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 								handleError(err)
 
 							} else if dataType == jsonparser.Array {
-								fmt.Println("sqltools.connections" + " is an Array")
+								// fmt.Println("sqltools.connections" + " is an Array")
 
 								var scidx int = 0
 								jsonparser.ArrayEach(dataValue, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
@@ -675,7 +687,11 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 										fmt.Println("keeping: " + name)
 									} else {
 										if *modifySettings {
-											fmt.Println("replacing: " + name)
+											if *forceUpdates {
+												fmt.Println("replacing: " + name)
+											} else {
+												fmt.Println("duplicate: " + name)
+											}
 										} else {
 											fmt.Println("skipping: " + name)
 										}
@@ -725,7 +741,9 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 									handleError(err)
 								} else {
 									if *modifySettings {
-										fmt.Println("Connection with name " + connName + " already exists!  -f to force replacement.")
+										if !*forceUpdates {
+											fmt.Println("Connection with name " + connName + " already exists!  -f to force replacement.")
+										}
 										idxStr := "[" + strconv.Itoa(foundIdx) + "]"
 										// idxStr := strconv.Itoa(foundIdx)
 										// fmt.Println("idxStr:" + idxStr)
@@ -785,6 +803,9 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 		// delete service key
 		_, err = cliConnection.CliCommandWithoutTerminalOutput("delete-service-key", serviceManagerName, serviceKeyName, "-f")
 		handleError(err)
+
+		fmt.Println("")
+
 	}
 }
 
@@ -807,7 +828,7 @@ func (c *ServiceManagementPlugin) GetMetadata() plugin.PluginMetadata {
 				Alias:    "smsi",
 				HelpText: "Show service manager service instances for a service offering and plan.",
 				UsageDetails: plugin.Usage{
-					Usage: "cf service-manager-service-instances [SERVICE_MANAGER_INSTANCE] [--offering <SERVICE_OFFERING>] [--plan <SERVICE_PLAN>] [--credentials] [--meta] [--owner] [-o JSON | SQLTools | Txt] [-m [-f]]",
+					Usage: "cf service-manager-service-instances [SERVICE_MANAGER_INSTANCE] [--offering <SERVICE_OFFERING>] [--plan <SERVICE_PLAN>] [--credentials] [--meta] [--owner] [-o JSON | SQLTools | Txt] [-m [-f]] [-a]",
 					Options: map[string]string{
 						"credentials": "Show credentials",
 						"meta":        "Include Meta containers",
@@ -817,6 +838,7 @@ func (c *ServiceManagementPlugin) GetMetadata() plugin.PluginMetadata {
 						"plan":        "Service plan (default 'hdi-shared')",
 						"m":           "Modify settings.json",
 						"f":           "Force updates (requires -m)",
+						"a":           "Offer All Containers option",
 					},
 				},
 			},
