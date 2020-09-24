@@ -54,3 +54,10 @@ jq '.["sqltools.connections"] = "[]"' /home/user/.theia/settings.json
 vim /home/user/.theia/settings.json smc.json
 
 ```
+
+For Release:
+```
+GOOS=darwin GOARCH=amd64 go build -o ServiceManagement.osx ServiceManagement_plugin.go
+GOOS=linux GOARCH=amd64 go build -o ServiceManagement.linux64 ServiceManagement_plugin.go
+GOOS=windows GOARCH=amd64 go build -o ServiceManagement.win64 ServiceManagement_plugin.go
+```
