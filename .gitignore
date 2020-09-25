@@ -1,5 +1,7 @@
 .DS_Store
 ServiceManagement.osx
 ServiceManagement.linux64
+ServiceManagement.linux32
 ServiceManagement.win64
+ServiceManagement.win32
 mod_settings

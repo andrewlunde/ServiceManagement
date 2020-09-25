@@ -464,7 +464,13 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 
 				addConn += `}`
 
+				// =====================================================================
+				// =====================================================================
+				// =====================================================================
 				// modifySettings = mod_settings.go
+				// =====================================================================
+				// =====================================================================
+				// =====================================================================
 
 				if *modifySettings {
 					fmt.Println("")
@@ -545,11 +551,20 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 
 					case "windows":
 						fmt.Println("On Windoz:")
-						if inSettings {
-							settingsFile = "~/Code/User/"
-						} else { //User(Global) Settings
-							settingsFile = homeDirectory + "%APPDATA%\\Code\\User\\settings.json"
-						}
+						//APPDATA=C:\Users\I830671\AppData\Roaming
+						// defaultsFile = "\"" + homeDirectory + "\\AppData\\Roaming\\Code\\storage.json" + "\""
+						// fmt.Println("defaultsFile: " + defaultsFile)
+						// byteValue, err := ioutil.ReadFile(defaultsFile)
+						// if err == nil {
+						// 	configURIPath, err := jsonparser.GetString(byteValue, "windowsState", "lastActiveWindow", "workspaceIdentifier", "configURIPath")
+						// 	if err == nil {
+						// 		fmt.Println("configURIPath: " + configURIPath)
+						// 		settingsFile = "/" + strings.TrimLeft(configURIPath, "file:/")
+						// 		inSettings = true // File has sqltools.connections at the top-level
+						// 	}
+						// }
+						settingsFile = "\"" + homeDirectory + "\\AppData\\Roaming\\Code\\User\\settings.json" + "\""
+						inSettings = false // File has sqltools.connections at the top-level
 
 					}
 
@@ -574,7 +589,7 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 
 						// Therefore, do *NOT* use !os.IsNotExist(err) to test for file existence
 						fmt.Println("settingsFile: " + settingsFile + " Existence Unknown!")
-
+						settingsExists = true
 					}
 
 					fmt.Println("")
@@ -703,7 +718,7 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 								// https://github.com/buger/jsonparser#set
 
 								if !skipping {
-									fmt.Println("Adding connection with name " + connName + ".")
+									fmt.Println("adding:  " + connName + "")
 
 									var newSQLToolsConn string
 
@@ -815,7 +830,7 @@ func (c *ServiceManagementPlugin) GetMetadata() plugin.PluginMetadata {
 		Version: plugin.VersionType{
 			Major: 1,
 			Minor: 0,
-			Build: 10,
+			Build: 11,
 		},
 		MinCliVersion: plugin.VersionType{
 			Major: 6,
