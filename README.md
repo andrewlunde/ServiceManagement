@@ -42,7 +42,7 @@ The ServiceManagement CF plugin supports the following commands:
 
 Command Name | Command Description
 --- | ---
-`service-manager-service-instances` `smsi` | Show service manager service instances for a service offering and plan. The default service offering is `hana` and the default service plan is `hdi-shared`. Defaults can be overriden with the `-offering`and/or `-plan`flags. Use the `-credentials` flag to show login credentials and certificates. Use the `-o` flag to show results in JSON, SQLTools or Txt format. It's possible to pipe the information to a file as shown in the examples below. When using `-o SQLTools` the `-credentials` flag will be set automatically. If `-m` is specified, an attempt to find the appropriate settings.json file will be made and ,if found, modify it.  If `-f` is specified in addition to `-m`, connections that already exist in the settings.json file will be forcably updated.
+`service-manager-service-instances` `smsi` | Show service manager service instances for a service offering and plan. The default service offering is `hana` and the default service plan is `hdi-shared`. Defaults can be overriden with the `-offering`and/or `-plan`flags. Use the `-credentials` flag to show login credentials and certificates. Use the `-o` flag to show results in JSON, SQLTools or Txt format. It's possible to pipe the information to a file as shown in the examples below. When using `-o SQLTools` the `-credentials` flag will be set automatically. If `-m` is specified, an attempt to find the appropriate settings.json file will be made and ,if found, modify it.  If `-f` is specified in addition to `-m`, connections that already exist in the settings.json file will be forceably updated.
 
 Usage:
 
