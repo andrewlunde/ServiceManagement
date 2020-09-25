@@ -5,6 +5,8 @@ This is a Cloud Foundry CLI plugin designed to make it easier when using the [Se
 # Requirements
 Installed CloudFoundry CLI - ensure that CloudFoundry CLI is installed and working. For more information about installation of CloudFoundry CLI, please visit the official CloudFoundry [documentation](https://docs.cloudfoundry.org/cf-cli/install-go-cli.html).
 
+If you are running from within VSCode, you need to create a Workspace before using the -m (Modify settings.json) option.
+
 # Download and Installation
 
 Check whether you have a previous version installed, using the command: `cf plugins`. If the ServiceManagement plugin is already installed, you need to uninstall it first and then to install the new version. You can uninstall the plugin using command `cf uninstall-plugin ServiceManagement`.

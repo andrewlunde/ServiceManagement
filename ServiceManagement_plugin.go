@@ -551,21 +551,26 @@ func (c *ServiceManagementPlugin) Run(cliConnection plugin.CliConnection, args [
 
 					case "windows":
 						fmt.Println("On Windoz:")
-						//APPDATA=C:\Users\I830671\AppData\Roaming
-						// defaultsFile = "\"" + homeDirectory + "\\AppData\\Roaming\\Code\\storage.json" + "\""
-						// fmt.Println("defaultsFile: " + defaultsFile)
-						// byteValue, err := ioutil.ReadFile(defaultsFile)
-						// if err == nil {
-						// 	configURIPath, err := jsonparser.GetString(byteValue, "windowsState", "lastActiveWindow", "workspaceIdentifier", "configURIPath")
-						// 	if err == nil {
-						// 		fmt.Println("configURIPath: " + configURIPath)
-						// 		settingsFile = "/" + strings.TrimLeft(configURIPath, "file:/")
-						// 		inSettings = true // File has sqltools.connections at the top-level
-						// 	}
-						// }
-						settingsFile = "\"" + homeDirectory + "\\AppData\\Roaming\\Code\\User\\settings.json" + "\""
-						inSettings = false // File has sqltools.connections at the top-level
 
+						appData := os.Getenv("APPDATA")
+						fmt.Printf("appData: %s\n", appData)
+
+						//APPDATA=C:\Users\I830671\AppData\Roaming
+
+						defaultsFile = appData + "/Code/storage.json"
+						fmt.Println("defaultsFile: " + defaultsFile)
+
+						byteValue, err := ioutil.ReadFile(defaultsFile)
+						if err == nil {
+							configURIPath, err := jsonparser.GetString(byteValue, "windowsState", "lastActiveWindow", "workspaceIdentifier", "configURIPath")
+							if err == nil {
+								fmt.Println("configURIPath: " + configURIPath)
+								settingsFile = strings.TrimLeft(configURIPath, "file:/")
+								settingsFile = strings.Replace(settingsFile, "%3A", ":", -1)
+								//fmt.Println("settingsFile: " + settingsFile)
+								inSettings = true // File has sqltools.connections at the top-level
+							}
+						}
 					}
 
 					fmt.Println("settingsFile: " + settingsFile)
