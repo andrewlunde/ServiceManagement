@@ -130,9 +130,9 @@ func main() {
 						"dialect": "SAPHana",
 						"server": "833726c5-cca3-4dce-a325-4385426009e7.hana.trial-us10.hanacloud.ondemand.com", 
 						"port": 443, 
-						"database": "D53EE042B6AD4E8093FF0A24F931586B", 
-						"username": "D53EE042B6AD4E8093FF0A24F931586B_B5IBO9PWMQ841D52POXNE26XN_RT", 
-						"password": "Mw9h7H.5r6CBidD2vtq.vxmzisxLAMx2_UJ9YrjZim2Yop-kUOcBII-g6VHYZMDpPzjT0PCQua.8i-V2f8MrjDqkGG6hRZAct2a2YIL7PFrlzeSDhO5qBOl6ni-VRF3t", 
+						"database": "", 
+						"username": "", 
+						"password": "", 
 						"connectionTimeout": 30, 
 						"hanaOptions": {
 							"encrypt": true, 
