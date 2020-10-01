@@ -5,3 +5,5 @@ ServiceManagement.linux32
 ServiceManagement.win64
 ServiceManagement.win32
 mod_settings
+mod_settings.go.bkk
+windoz_file.go.bkk
